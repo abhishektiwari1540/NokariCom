@@ -205,26 +205,33 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Browse by Category</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {mockCategories.map((category) => (
-              <Link key={category.id} to={`/jobs?category=${category.name}`}>
-                <Card className="hover:shadow-lg transition-all cursor-pointer hover:border-[#E91E63] border-2">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-4xl mb-3">
-                      {category.icon === 'Laptop' && '💻'}
-                      {category.icon === 'Megaphone' && '📱'}
-                      {category.icon === 'Palette' && '🎨'}
-                      {category.icon === 'TrendingUp' && '📊'}
-                      {category.icon === 'Users' && '👥'}
-                      {category.icon === 'DollarSign' && '💰'}
-                      {category.icon === 'Headphones' && '🎧'}
-                      {category.icon === 'PenTool' && '✍️'}
-                    </div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{category.name}</h3>
-                    <p className="text-sm text-gray-600">{category.count}+ jobs</p>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+            {mockCategories.map((category) => {
+              const iconMap = {
+                'Laptop': Laptop,
+                'Megaphone': Megaphone,
+                'Palette': Palette,
+                'TrendingUp': TrendingUp,
+                'Users': Users,
+                'DollarSign': DollarSign,
+                'Headphones': Headphones,
+                'PenTool': PenTool
+              };
+              const IconComponent = iconMap[category.icon] || Briefcase;
+              
+              return (
+                <Link key={category.id} to={`/jobs?category=${category.name}`}>
+                  <Card className="hover:shadow-lg transition-all cursor-pointer hover:border-[#E91E63] border-2">
+                    <CardContent className="p-6 text-center">
+                      <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FFF1F3' }}>
+                        <IconComponent className="w-8 h-8" style={{ color: '#E91E63' }} />
+                      </div>
+                      <h3 className="font-semibold text-gray-900 mb-2">{category.name}</h3>
+                      <p className="text-sm text-gray-600">{category.count}+ jobs</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
