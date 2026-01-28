@@ -5,14 +5,92 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { mockJobs, mockCompanies, mockCategories, mockTestimonials, mockStats } from '../mock';
+import { mockCategories, mockTestimonials, mockStats } from '../mock';
 
 const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [jobs, setJobs] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [featuredJobs, setFeaturedJobs] = useState([]);
+  const [topCompanies, setTopCompanies] = useState([]);
 
-  const featuredJobs = mockJobs.filter(job => job.featured).slice(0, 4);
-  const topCompanies = mockCompanies.slice(0, 6);
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('https://scraping-production-6a7a.up.railway.app/api/scrape');
+        console.log('API Response Status:', response);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          // Transform API data to match your frontend structure
+          const transformedJobs = data.data.slice(0, 50).map(job => ({
+            id: job._id || job.job_id,
+            title: job.job_title,
+            company: job.company_name,
+            location: job.location,
+            salary: job.salary_currency ? `${job.salary_currency} Competitive` : 'Competitive Salary',
+            skills: job.skills || [],
+            posted: formatDate(job.posted_date),
+            featured: job.is_verified || Math.random() > 0.7, // Mark some as featured
+            logo: job.company_logo || '/default-company.png',
+            description: job.description,
+            is_remote: job.is_remote,
+            category: job.category || 'General',
+            requirements: job.requirements,
+            benefits: job.benefits
+          }));
+          
+          setJobs(transformedJobs);
+          
+          // Set featured jobs (first 4)
+          setFeaturedJobs(transformedJobs.slice(0, 4));
+          
+          // Create companies data from jobs
+          const uniqueCompanies = Array.from(
+            new Map(
+              transformedJobs.map(job => [job.company, {
+                id: job.company.toLowerCase().replace(/\s+/g, '-'),
+                name: job.company,
+                logo: job.logo,
+                rating: (Math.random() * 2 + 3).toFixed(1), // Random rating 3.0-5.0
+                reviews: Math.floor(Math.random() * 1000) + 50,
+                openPositions: transformedJobs.filter(j => j.company === job.company).length
+              }])
+            ).values()
+          );
+          
+          setCompanies(uniqueCompanies);
+          setTopCompanies(uniqueCompanies.slice(0, 6));
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // You can keep mock data as fallback here if needed
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Format date to relative time
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Recently';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    return `${Math.floor(diffInDays / 30)} months ago`;
+  };
 
   // Auto-rotate testimonials
   useEffect(() => {
@@ -37,6 +115,38 @@ const Home = () => {
     window.location.href = `/jobs?search=${searchQuery}`;
   };
 
+  // Loading skeleton
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        <section className="relative overflow-hidden">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+            <div className="text-center">
+              <div className="h-16 bg-gray-200 rounded-lg max-w-2xl mx-auto mb-4 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded-lg max-w-md mx-auto mb-8 animate-pulse"></div>
+              {/* Search bar skeleton */}
+              <div className="max-w-3xl mx-auto mb-8">
+                <div className="bg-white rounded-2xl shadow-lg p-4 flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 h-12 bg-gray-100 rounded-lg animate-pulse"></div>
+                  <div className="h-12 w-32 bg-gray-100 rounded-lg animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        {/* Loading skeletons for other sections */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-64 bg-gray-100 rounded-lg animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Hero Section */}
@@ -54,7 +164,7 @@ const Home = () => {
               <span className="text-gray-900">Job Portal</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8">
-              10,000+ Jobs | Daily Updates | Trusted by 50,000+
+              {jobs.length}+ Jobs | Daily Updates | Trusted by 50,000+
             </p>
 
             {/* Search Bar */}
@@ -151,7 +261,14 @@ const Home = () => {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-4">
-                      <img src={job.logo} alt={job.company} className="w-14 h-14 object-contain" />
+                      <img 
+                        src={job.logo} 
+                        alt={job.company} 
+                        className="w-14 h-14 object-contain rounded-lg border bg-white"
+                        onError={(e) => {
+                          e.target.src = '/default-company.png';
+                        }}
+                      />
                       <div>
                         <h3 className="font-bold text-lg text-gray-900 mb-1">{job.title}</h3>
                         <p className="text-gray-600">{job.company}</p>
@@ -159,6 +276,11 @@ const Home = () => {
                     </div>
                     {job.featured && (
                       <Badge style={{ backgroundColor: '#E91E63' }} className="text-white">FEATURED</Badge>
+                    )}
+                    {job.is_remote && (
+                      <Badge variant="outline" className="text-green-600 border-green-600 ml-2">
+                        Remote
+                      </Badge>
                     )}
                   </div>
 
@@ -179,6 +301,9 @@ const Home = () => {
                         {skill}
                       </Badge>
                     ))}
+                    {job.skills.length === 0 && (
+                      <span className="text-sm text-gray-500">Skills not specified</span>
+                    )}
                   </div>
 
                   <div className="flex justify-between items-center pt-4 border-t">
@@ -218,6 +343,12 @@ const Home = () => {
               };
               const IconComponent = iconMap[category.icon] || Briefcase;
               
+              // Count jobs by category
+              const jobCount = jobs.filter(job => 
+                job.category?.toLowerCase().includes(category.name.toLowerCase()) ||
+                category.name.toLowerCase().includes(job.category?.toLowerCase())
+              ).length;
+              
               return (
                 <Link key={category.id} to={`/jobs?category=${category.name}`}>
                   <Card className="hover:shadow-lg transition-all cursor-pointer hover:border-[#E91E63] border-2">
@@ -226,7 +357,7 @@ const Home = () => {
                         <IconComponent className="w-8 h-8" style={{ color: '#E91E63' }} />
                       </div>
                       <h3 className="font-semibold text-gray-900 mb-2">{category.name}</h3>
-                      <p className="text-sm text-gray-600">{category.count}+ jobs</p>
+                      <p className="text-sm text-gray-600">{jobCount || category.count}+ jobs</p>
                     </CardContent>
                   </Card>
                 </Link>
@@ -252,7 +383,14 @@ const Home = () => {
             {topCompanies.map((company) => (
               <Card key={company.id} className="hover:shadow-lg transition-all border-2 hover:border-[#E91E63]">
                 <CardContent className="p-6">
-                  <img src={company.logo} alt={company.name} className="w-24 h-24 object-contain mx-auto mb-4" />
+                  <img 
+                    src={company.logo} 
+                    alt={company.name} 
+                    className="w-24 h-24 object-contain mx-auto mb-4 rounded-lg border bg-white"
+                    onError={(e) => {
+                      e.target.src = '/default-company.png';
+                    }}
+                  />
                   <h3 className="font-bold text-lg text-center mb-2">{company.name}</h3>
                   <div className="flex items-center justify-center mb-3">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
@@ -279,7 +417,7 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
               { step: '1', title: 'Create Profile', desc: 'Sign up free in 30 seconds' },
-              { step: '2', title: 'Search Jobs', desc: 'Browse 10k+ verified jobs' },
+              { step: '2', title: 'Search Jobs', desc: `Browse ${jobs.length}+ verified jobs` },
               { step: '3', title: 'Apply Online', desc: 'One-click applications' },
               { step: '4', title: 'Get Hired', desc: 'Track status' }
             ].map((item, idx) => (
