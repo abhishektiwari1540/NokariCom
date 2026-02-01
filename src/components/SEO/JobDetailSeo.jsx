@@ -1,9 +1,18 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import SeoMeta from './SeoMeta';
 
 const JobDetailSeo = ({ job }) => {
-  // Define these helper functions at the top level
-  const formatSalaryForTitle = () => {
+  // Helper function to convert experience to months
+  const getExperienceMonths = useCallback((exp) => {
+    if (exp === 'Fresher') return 0;
+    if (exp === '1-3 years') return 24;
+    if (exp === '3-5 years') return 48;
+    if (exp === '5+ years') return 60;
+    return 0;
+  }, []);
+
+  // Define helper functions with useCallback
+  const formatSalaryForTitle = useCallback(() => {
     if (!job) return 'Competitive Salary';
     if (job.salary_currency === 'INR') {
       return 'Competitive Salary';
@@ -11,42 +20,34 @@ const JobDetailSeo = ({ job }) => {
       return `${job.salary_currency} Competitive`;
     }
     return 'Competitive Salary';
-  };
+  }, [job]);
 
-  const getJobLocation = () => {
+  const getJobLocation = useCallback(() => {
     if (!job) return 'Jaipur';
     if (job.location) {
       const parts = job.location.split(',');
       return parts[0] || 'Jaipur';
     }
     return 'Jaipur';
-  };
+  }, [job]);
 
-  const getExperienceText = () => {
+  const getExperienceText = useCallback(() => {
     if (!job || !job.experience) return '';
     return ` | ${job.experience} experience`;
-  };
+  }, [job]);
 
-  const getSkillsText = () => {
+  const getSkillsText = useCallback(() => {
     if (!job || !job.skills || job.skills.length === 0) {
       return 'various skills';
     }
     return job.skills.slice(0, 3).join(', ');
-  };
+  }, [job]);
 
-  const getExperienceMonths = (exp) => {
-    if (exp === 'Fresher') return 0;
-    if (exp === '1-3 years') return 24;
-    if (exp === '3-5 years') return 48;
-    if (exp === '5+ years') return 60;
-    return 0;
-  };
-
-  // Move the early return logic to after hooks
-  const location = useMemo(() => getJobLocation(), [job]);
-  const formattedSalary = useMemo(() => formatSalaryForTitle(), [job]);
-  const experienceText = useMemo(() => getExperienceText(), [job]);
-  const skillsText = useMemo(() => getSkillsText(), [job]);
+  // Memoized values
+  const location = useMemo(() => getJobLocation(), [getJobLocation]);
+  const formattedSalary = useMemo(() => formatSalaryForTitle(), [formatSalaryForTitle]);
+  const experienceText = useMemo(() => getExperienceText(), [getExperienceText]);
+  const skillsText = useMemo(() => getSkillsText(), [getSkillsText]);
 
   // Generate SEO content
   const title = useMemo(() => {
@@ -125,7 +126,7 @@ const JobDetailSeo = ({ job }) => {
     }
 
     return jobPosting;
-  }, [job, location]);
+  }, [job, location, getExperienceMonths]);
 
   // Early return at the end, after all hooks
   if (!job) {
