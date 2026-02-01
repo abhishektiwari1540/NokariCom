@@ -1,291 +1,236 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Briefcase, Building2, Filter, X, Star, Clock, ExternalLink, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, MapPin, Briefcase, Building2, CheckCircle, Users, ArrowRight, Star, Laptop, Megaphone, Palette, TrendingUp, DollarSign, Headphones, PenTool, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Checkbox } from '../components/ui/checkbox';
-import { Label } from '../components/ui/label';
-import { Slider } from '../components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Skeleton } from '../components/ui/skeleton';
+import { mockCategories, mockTestimonials, mockStats } from '../mock';
 
-const Jobs = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+const Home = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [jobs, setJobs] = useState([]);
-  const [allJobs, setAllJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [selectedCompanies, setSelectedCompanies] = useState([]);
-  const [showRemoteOnly, setShowRemoteOnly] = useState(false);
-  const [showVerifiedOnly, setShowVerifiedOnly] = useState(false);
-  const [salaryRange, setSalaryRange] = useState([0, 100]);
-  const [sortBy, setSortBy] = useState('newest');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [jobsPerPage] = useState(20);
-  const [showFilters, setShowFilters] = useState(false);
   const [companies, setCompanies] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [featuredJobs, setFeaturedJobs] = useState([]);
+  const [topCompanies, setTopCompanies] = useState([]);
+  const [categoriesWithCount, setCategoriesWithCount] = useState([]);
 
-  // Initial data fetch
+  // Fetch data from API with caching
   useEffect(() => {
-    const fetchJobs = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Try to get cached data first
+        const cachedData = localStorage.getItem('jobsData');
+        const cacheTimestamp = localStorage.getItem('jobsDataTimestamp');
+        const now = new Date().getTime();
+        const cacheDuration = 5 * 60 * 1000; // 5 minutes cache
+        
+        if (cachedData && cacheTimestamp && (now - parseInt(cacheTimestamp)) < cacheDuration) {
+          const data = JSON.parse(cachedData);
+          processData(data);
+          setLoading(false);
+          return;
+        }
+        
         const response = await fetch('https://scraping-production-6a7a.up.railway.app/api/scrape');
         
         if (!response.ok) {
-          throw new Error('Failed to fetch jobs');
+          throw new Error(`API Error: ${response.status}`);
         }
         
         const data = await response.json();
         
-        if (data.success && data.data) {
-          const transformedJobs = data.data.map(job => ({
-            id: job._id || job.job_id,
-            title: job.job_title,
-            company: job.company_name,
-            location: job.location,
-            salary: job.salary_currency ? `${job.salary_currency} Competitive` : 'Competitive Salary',
-            salaryCurrency: job.salary_currency,
-            salaryAmount: job.salary_amount || 0,
-            skills: job.skills || [],
-            posted: formatDate(job.posted_date),
-            featured: job.is_verified || Math.random() > 0.7,
-            logo: job.company_logo || '/default-company.png',
-            description: job.description,
-            is_remote: job.is_remote,
-            is_verified: job.is_verified,
-            category: job.category || 'General',
-            requirements: job.requirements,
-            benefits: job.benefits,
-            posted_date: job.posted_date
-          }));
-          
-          setAllJobs(transformedJobs);
-          setJobs(transformedJobs);
-          
-          // Extract unique companies
-          const uniqueCompanies = Array.from(
-            new Map(
-              transformedJobs.map(job => [job.company, {
-                name: job.company,
-                count: transformedJobs.filter(j => j.company === job.company).length,
-                logo: job.logo
-              }])
-            ).values()
-          ).sort((a, b) => b.count - a.count);
-          
-          setCompanies(uniqueCompanies);
-          
-          // Extract unique categories
-          const uniqueCategories = Array.from(
-            new Map(
-              transformedJobs
-                .filter(job => job.category && job.category !== 'General')
-                .map(job => [job.category, {
-                  name: job.category,
-                  count: transformedJobs.filter(j => j.category === job.category).length
-                }])
-            ).values()
-          ).sort((a, b) => b.count - a.count);
-          
-          setCategories(uniqueCategories);
-        }
+        // Cache the data
+        localStorage.setItem('jobsData', JSON.stringify(data));
+        localStorage.setItem('jobsDataTimestamp', now.toString());
+        
+        processData(data);
+        
       } catch (error) {
-        console.error('Error fetching jobs:', error);
-        // You could add a retry mechanism here
+        console.error('Error fetching data:', error);
+        // Fallback to cached data even if expired
+        const cachedData = localStorage.getItem('jobsData');
+        if (cachedData) {
+          const data = JSON.parse(cachedData);
+          processData(data);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchJobs();
+    const processData = (data) => {
+      if (data.success && data.data) {
+        // Transform API data - process only first 50 for speed
+        const transformedJobs = data.data.slice(0, 50).map(job => ({
+          id: job._id || job.job_id,
+          title: job.job_title,
+          company: job.company_name,
+          location: job.location,
+          salary: job.salary_currency ? `${job.salary_currency} Competitive` : 'Competitive Salary',
+          skills: Array.isArray(job.skills) ? job.skills : [],
+          posted: formatDate(job.posted_date),
+          featured: job.is_verified || Math.random() > 0.7,
+          logo: job.company_logo || '/default-company.png',
+          description: job.description,
+          is_remote: job.is_remote,
+          category: job.category || 'General',
+          requirements: job.requirements,
+          benefits: job.benefits
+        }));
+        
+        setJobs(transformedJobs);
+        
+        // Set featured jobs (first 4 with remote or verified for better UX)
+        const featured = transformedJobs
+          .filter(job => job.featured || job.is_remote)
+          .slice(0, 4);
+        
+        // If not enough featured jobs, take first 4
+        if (featured.length < 4) {
+          setFeaturedJobs(transformedJobs.slice(0, 4));
+        } else {
+          setFeaturedJobs(featured);
+        }
+        
+        // Create companies data from jobs
+        const companyMap = new Map();
+        transformedJobs.forEach(job => {
+          if (!companyMap.has(job.company)) {
+            companyMap.set(job.company, {
+              id: job.company.toLowerCase().replace(/\s+/g, '-'),
+              name: job.company,
+              logo: job.logo,
+              rating: (Math.random() * 2 + 3).toFixed(1),
+              reviews: Math.floor(Math.random() * 1000) + 50,
+              openPositions: 0
+            });
+          }
+          const company = companyMap.get(job.company);
+          company.openPositions++;
+        });
+        
+        const uniqueCompanies = Array.from(companyMap.values());
+        setCompanies(uniqueCompanies);
+        
+        // Sort companies by open positions and take top 6
+        const sortedCompanies = [...uniqueCompanies]
+          .sort((a, b) => b.openPositions - a.openPositions)
+          .slice(0, 6);
+        setTopCompanies(sortedCompanies);
+        
+        // Count jobs by category
+        const categoryCounts = {};
+        transformedJobs.forEach(job => {
+          const category = job.category || 'General';
+          categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        });
+        
+        // Update categories with dynamic counts
+        const updatedCategories = mockCategories.map(cat => {
+          const count = Object.entries(categoryCounts).reduce((total, [catName, catCount]) => {
+            if (cat.name.toLowerCase().includes(catName.toLowerCase()) || 
+                catName.toLowerCase().includes(cat.name.toLowerCase())) {
+              return total + catCount;
+            }
+            return total;
+          }, 0);
+          
+          return {
+            ...cat,
+            dynamicCount: count || cat.count
+          };
+        });
+        
+        setCategoriesWithCount(updatedCategories);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  // Format date
-  const formatDate = (dateString) => {
+  // Format date to relative time
+  const formatDate = useCallback((dateString) => {
     if (!dateString) return 'Recently';
     
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays === 0) return 'Today';
-    if (diffInDays === 1) return 'Yesterday';
-    if (diffInDays < 7) return `${diffInDays} days ago`;
-    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-    return `${Math.floor(diffInDays / 30)} months ago`;
-  };
-
-  // Filter and sort jobs with useMemo for performance
-  const filteredJobs = useMemo(() => {
-    let filtered = [...allJobs];
-
-    // Search query filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(job =>
-        job.title.toLowerCase().includes(query) ||
-        job.company.toLowerCase().includes(query) ||
-        job.skills.some(skill => skill.toLowerCase().includes(query)) ||
-        job.description?.toLowerCase().includes(query)
-      );
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+      
+      if (diffInDays === 0) return 'Today';
+      if (diffInDays === 1) return 'Yesterday';
+      if (diffInDays < 7) return `${diffInDays} days ago`;
+      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+      return `${Math.floor(diffInDays / 30)} months ago`;
+    } catch {
+      return 'Recently';
     }
-
-    // Category filter
-    if (selectedCategory) {
-      filtered = filtered.filter(job =>
-        job.category?.toLowerCase().includes(selectedCategory.toLowerCase())
-      );
-    }
-
-    // Company filter
-    if (selectedCompanies.length > 0) {
-      filtered = filtered.filter(job =>
-        selectedCompanies.includes(job.company)
-      );
-    }
-
-    // Remote filter
-    if (showRemoteOnly) {
-      filtered = filtered.filter(job => job.is_remote);
-    }
-
-    // Verified filter
-    if (showVerifiedOnly) {
-      filtered = filtered.filter(job => job.is_verified);
-    }
-
-    // Salary filter (simplified)
-    if (salaryRange[1] < 100) {
-      filtered = filtered.filter(job => {
-        const salaryValue = job.salaryAmount || 0;
-        return salaryValue >= salaryRange[0] && salaryValue <= salaryRange[1];
-      });
-    }
-
-    // Sorting
-    switch (sortBy) {
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.posted_date) - new Date(a.posted_date));
-        break;
-      case 'oldest':
-        filtered.sort((a, b) => new Date(a.posted_date) - new Date(b.posted_date));
-        break;
-      case 'salary_high':
-        filtered.sort((a, b) => (b.salaryAmount || 0) - (a.salaryAmount || 0));
-        break;
-      case 'salary_low':
-        filtered.sort((a, b) => (a.salaryAmount || 0) - (b.salaryAmount || 0));
-        break;
-      case 'company':
-        filtered.sort((a, b) => a.company.localeCompare(b.company));
-        break;
-    }
-
-    return filtered;
-  }, [allJobs, searchQuery, selectedCategory, selectedCompanies, showRemoteOnly, showVerifiedOnly, salaryRange, sortBy]);
-
-  // Pagination
-  const indexOfLastJob = currentPage * jobsPerPage;
-  const indexOfFirstJob = indexOfLastJob - jobsPerPage;
-  const currentJobs = filteredJobs.slice(indexOfFirstJob, indexOfLastJob);
-  const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
-
-  // Handle company selection
-  const handleCompanyToggle = useCallback((companyName) => {
-    setSelectedCompanies(prev =>
-      prev.includes(companyName)
-        ? prev.filter(c => c !== companyName)
-        : [...prev, companyName]
-    );
-    setCurrentPage(1);
   }, []);
 
-  // Handle search
-  const handleSearch = (e) => {
+  // Auto-rotate testimonials
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTestimonial((prev) => (prev + 1) % mockTestimonials.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getIcon = useCallback((iconName) => {
+    const icons = {
+      Briefcase,
+      Building2,
+      CheckCircle,
+      Users
+    };
+    return icons[iconName] || Briefcase;
+  }, []);
+
+  const handleSearch = useCallback((e) => {
     e.preventDefault();
-    setCurrentPage(1);
-    const params = new URLSearchParams(searchParams);
-    if (searchQuery) {
-      params.set('search', searchQuery);
-    } else {
-      params.delete('search');
+    if (searchQuery.trim()) {
+      window.location.href = `/jobs?search=${encodeURIComponent(searchQuery)}`;
     }
-    setSearchParams(params);
-  };
+  }, [searchQuery]);
 
-  // Clear all filters
-  const clearAllFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('');
-    setSelectedCompanies([]);
-    setShowRemoteOnly(false);
-    setShowVerifiedOnly(false);
-    setSalaryRange([0, 100]);
-    setSortBy('newest');
-    setCurrentPage(1);
-    setSearchParams({});
-  };
-
-  // Load more jobs (infinite scroll alternative)
-  const loadMoreJobs = () => {
-    if (currentPage < totalPages) {
-      setLoadingMore(true);
-      setTimeout(() => {
-        setCurrentPage(prev => prev + 1);
-        setLoadingMore(false);
-      }, 300);
-    }
-  };
+  // Memoized stats with dynamic data
+  const dynamicStats = useMemo(() => [
+    { icon: 'Briefcase', label: 'Live Jobs', value: jobs.length || 0 },
+    { icon: 'Building2', label: 'Companies', value: companies.length || 0 },
+    { icon: 'CheckCircle', label: 'Verified Jobs', value: jobs.filter(job => job.featured).length || 0 },
+    { icon: 'Users', label: 'Job Seekers', value: '50,000+' }
+  ], [jobs, companies]);
 
   // Loading skeleton
-  if (loading && allJobs.length === 0) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Search Skeleton */}
-              <div className="flex-1">
-                <Skeleton className="h-12 w-full rounded-lg" />
-              </div>
-              <div className="flex gap-3">
-                <Skeleton className="h-12 w-32 rounded-lg" />
-                <Skeleton className="h-12 w-32 rounded-lg" />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+        <section className="relative overflow-hidden">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+            <div className="text-center">
+              <div className="h-16 bg-gray-200 rounded-lg max-w-2xl mx-auto mb-4 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded-lg max-w-md mx-auto mb-8 animate-pulse"></div>
+              {/* Search bar skeleton */}
+              <div className="max-w-3xl mx-auto mb-8">
+                <div className="bg-white rounded-2xl shadow-lg p-4 flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 h-12 bg-gray-100 rounded-lg animate-pulse"></div>
+                  <div className="h-12 w-32 bg-gray-100 rounded-lg animate-pulse"></div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
+        </section>
+        
+        {/* Loading skeletons for other sections */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Filters Skeleton */}
-            <div className="lg:col-span-1">
-              <div className="space-y-4">
-                <Skeleton className="h-6 w-32" />
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Jobs Skeleton */}
-            <div className="lg:col-span-3">
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-48" />
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
-                ))}
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-64 bg-gray-100 rounded-lg animate-pulse"></div>
+            ))}
           </div>
         </div>
       </div>
@@ -293,474 +238,348 @@ const Jobs = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Search Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex-1 w-full">
-              <form onSubmit={handleSearch} className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-10 w-72 h-72 rounded-full" style={{ background: 'radial-gradient(circle, #E91E63 0%, transparent 70%)' }}></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full" style={{ background: 'radial-gradient(circle, #FF6F00 0%, transparent 70%)' }}></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <span style={{ color: '#E91E63' }}>Jaipur Ka Apna</span>
+              <br />
+              <span className="text-gray-900">Job Portal</span>
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 mb-8">
+              {jobs.length}+ Jobs | Daily Updates | Trusted by 50,000+
+            </p>
+
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="max-w-3xl mx-auto mb-8">
+              <div className="bg-white rounded-2xl shadow-lg p-4 flex flex-col md:flex-row gap-4">
+                <div className="flex-1 flex items-center">
+                  <Search className="w-5 h-5 text-gray-400 mr-3" />
                   <Input
                     type="text"
                     placeholder="Search jobs, companies, skills..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 border-gray-300 focus:border-[#E91E63]"
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="h-12 text-white px-6"
+                  size="lg"
+                  className="text-white font-semibold"
                   style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}
                 >
                   Search
                 </Button>
-              </form>
-            </div>
-            
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="w-4 h-4" />
-                Filters
-                {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </Button>
-              
-              {(searchQuery || selectedCategory || selectedCompanies.length > 0 || showRemoteOnly || showVerifiedOnly) && (
-                <Button
-                  variant="ghost"
-                  onClick={clearAllFilters}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <X className="w-4 h-4 mr-1" />
-                  Clear All
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Active Filters */}
-          {(searchQuery || selectedCategory || selectedCompanies.length > 0 || showRemoteOnly || showVerifiedOnly) && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {searchQuery && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Search: {searchQuery}
-                  <button onClick={() => setSearchQuery('')}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              )}
-              
-              {selectedCategory && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Category: {selectedCategory}
-                  <button onClick={() => setSelectedCategory('')}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              )}
-              
-              {selectedCompanies.map(company => (
-                <Badge key={company} variant="secondary" className="flex items-center gap-1">
-                  {company}
-                  <button onClick={() => handleCompanyToggle(company)}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              ))}
-              
-              {showRemoteOnly && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Remote Only
-                  <button onClick={() => setShowRemoteOnly(false)}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              )}
-              
-              {showVerifiedOnly && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  Verified Only
-                  <button onClick={() => setShowVerifiedOnly(false)}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar */}
-          <div className={`lg:col-span-1 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <Card className="sticky top-24">
-              <CardContent className="p-6 space-y-6">
-                {/* Sort By */}
-                <div>
-                  <Label className="font-semibold mb-2 block">Sort By</Label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="newest">Newest First</SelectItem>
-                      <SelectItem value="oldest">Oldest First</SelectItem>
-                      <SelectItem value="salary_high">Salary: High to Low</SelectItem>
-                      <SelectItem value="salary_low">Salary: Low to High</SelectItem>
-                      <SelectItem value="company">Company Name</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Quick Filters */}
-                <div>
-                  <Label className="font-semibold mb-3 block">Quick Filters</Label>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="remote" 
-                        checked={showRemoteOnly}
-                        onCheckedChange={(checked) => setShowRemoteOnly(checked)}
-                      />
-                      <Label htmlFor="remote" className="cursor-pointer">Remote Jobs Only</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="verified" 
-                        checked={showVerifiedOnly}
-                        onCheckedChange={(checked) => setShowVerifiedOnly(checked)}
-                      />
-                      <Label htmlFor="verified" className="cursor-pointer">Verified Jobs Only</Label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Categories */}
-                {categories.length > 0 && (
-                  <div>
-                    <Label className="font-semibold mb-3 block">Categories</Label>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                      {categories.map(category => (
-                        <div key={category.name} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`cat-${category.name}`}
-                            checked={selectedCategory === category.name}
-                            onCheckedChange={(checked) => {
-                              setSelectedCategory(checked ? category.name : '');
-                              setCurrentPage(1);
-                            }}
-                          />
-                          <Label htmlFor={`cat-${category.name}`} className="cursor-pointer flex-1">
-                            {category.name}
-                          </Label>
-                          <Badge variant="outline" className="text-xs">
-                            {category.count}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Companies */}
-                {companies.length > 0 && (
-                  <div>
-                    <Label className="font-semibold mb-3 block">Companies</Label>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                      {companies.slice(0, 20).map(company => (
-                        <div key={company.name} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`comp-${company.name}`}
-                            checked={selectedCompanies.includes(company.name)}
-                            onCheckedChange={() => handleCompanyToggle(company.name)}
-                          />
-                          <Label htmlFor={`comp-${company.name}`} className="cursor-pointer flex-1 truncate">
-                            {company.name}
-                          </Label>
-                          <Badge variant="outline" className="text-xs">
-                            {company.count}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Salary Range */}
-                <div>
-                  <Label className="font-semibold mb-3 block">Salary Range</Label>
-                  <div className="space-y-4">
-                    <Slider
-                      value={salaryRange}
-                      onValueChange={setSalaryRange}
-                      max={100}
-                      step={10}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>${salaryRange[0]}K</span>
-                      <span>${salaryRange[1]}K</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Results Info */}
-                <div className="pt-4 border-t">
-                  <div className="text-sm text-gray-600">
-                    <div className="flex justify-between mb-1">
-                      <span>Total Jobs:</span>
-                      <span className="font-semibold">{filteredJobs.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Showing:</span>
-                      <span className="font-semibold">
-                        {Math.min(indexOfFirstJob + 1, filteredJobs.length)}-
-                        {Math.min(indexOfLastJob, filteredJobs.length)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Jobs List */}
-          <div className="lg:col-span-3">
-            {/* Results Header */}
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {filteredJobs.length} Job{filteredJobs.length !== 1 ? 's' : ''} Found
-                </h2>
-                {searchQuery && (
-                  <p className="text-gray-600 mt-1">
-                    Results for: <span className="font-semibold">{searchQuery}</span>
-                  </p>
-                )}
               </div>
-              
-              <div className="hidden lg:block">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="salary_high">Salary: High to Low</SelectItem>
-                    <SelectItem value="salary_low">Salary: Low to High</SelectItem>
-                    <SelectItem value="company">Company Name</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            </form>
 
-            {/* Jobs Grid */}
-            {currentJobs.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Search className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
-                  <p className="text-gray-600 mb-4">
-                    Try adjusting your search or filter criteria
-                  </p>
-                  <Button
+            {/* Quick Filters */}
+            <div className="flex flex-wrap justify-center gap-3 mb-6">
+              {['Government Jobs', 'Private Jobs', 'Internships', 'Remote'].map((filter) => (
+                <Link key={filter} to={`/jobs?type=${filter.toLowerCase().replace(' ', '-')}`}>
+                  <Badge
                     variant="outline"
-                    onClick={clearAllFilters}
-                    className="hover:bg-[#E91E63] hover:text-white hover:border-[#E91E63]"
+                    className="px-4 py-2 cursor-pointer hover:bg-[#E91E63] hover:text-white hover:border-[#E91E63] transition-colors"
                   >
-                    Clear All Filters
-                  </Button>
+                    {filter}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+
+            {/* Popular Searches */}
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Popular Searches: </span>
+              {['Software Developer', 'Digital Marketing', 'BPO', 'Sales'].map((term, idx) => (
+                <React.Fragment key={term}>
+                  <Link to={`/jobs?search=${encodeURIComponent(term)}`} className="text-[#E91E63] hover:underline">
+                    {term}
+                  </Link>
+                  {idx < 3 && ' • '}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {dynamicStats.map((stat) => {
+              const Icon = getIcon(stat.icon);
+              return (
+                <Card key={stat.label} className="border-2 hover:border-[#E91E63] transition-all hover:shadow-lg">
+                  <CardContent className="p-6 text-center">
+                    <div className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}>
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
+                    <div className="text-sm text-gray-600">{stat.label}</div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Jobs */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Featured Jobs</h2>
+            <Link to="/jobs">
+              <Button variant="ghost" className="text-[#E91E63] hover:text-[#FF6F00]">
+                View All <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {featuredJobs.map((job) => (
+              <Card key={job.id} className="hover:shadow-lg transition-all border-2 hover:border-[#E91E63]">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <img 
+                        src={job.logo} 
+                        alt={job.company} 
+                        className="w-14 h-14 object-contain rounded-lg border bg-white"
+                        onError={(e) => {
+                          e.target.src = '/default-company.png';
+                        }}
+                      />
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900 mb-1">{job.title}</h3>
+                        <p className="text-gray-600">{job.company}</p>
+                      </div>
+                    </div>
+                    {job.featured && (
+                      <Badge style={{ backgroundColor: '#E91E63' }} className="text-white">FEATURED</Badge>
+                    )}
+                    {job.is_remote && (
+                      <Badge variant="outline" className="text-green-600 border-green-600 ml-2">
+                        Remote
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-1" />
+                      {job.location}
+                    </div>
+                    <div className="flex items-center">
+                      <Briefcase className="w-4 h-4 mr-1" />
+                      {job.salary}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {job.skills.slice(0, 3).map((skill) => (
+                      <Badge key={skill} variant="secondary" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
+                    {job.skills.length === 0 && (
+                      <span className="text-sm text-gray-500">Skills not specified</span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <span className="text-sm text-gray-500">Posted {job.posted}</span>
+                    <Link to={`/jobs/${job.id}`}>
+                      <Button
+                        size="sm"
+                        className="text-white"
+                        style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}
+                      >
+                        Apply Now
+                      </Button>
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="space-y-4">
-                {currentJobs.map((job) => (
-                  <Card key={job.id} className="hover:shadow-lg transition-all border-2 hover:border-[#E91E63]">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                        {/* Company Logo */}
-                        <img 
-                          src={job.logo} 
-                          alt={job.company} 
-                          className="w-16 h-16 object-contain rounded-lg border bg-white flex-shrink-0"
-                          onError={(e) => {
-                            e.target.src = '/default-company.png';
-                          }}
-                        />
-                        
-                        {/* Job Details */}
-                        <div className="flex-1">
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
-                            <div>
-                              <Link to={`/jobs/${job.id}`}>
-                                <h3 className="font-bold text-lg text-gray-900 hover:text-[#E91E63] mb-1">
-                                  {job.title}
-                                </h3>
-                              </Link>
-                              <p className="text-gray-700">{job.company}</p>
-                            </div>
-                            
-                            <div className="flex flex-wrap gap-2">
-                              {job.featured && (
-                                <Badge style={{ backgroundColor: '#E91E63' }} className="text-white">
-                                  FEATURED
-                                </Badge>
-                              )}
-                              {job.is_remote && (
-                                <Badge variant="outline" className="text-green-600 border-green-600">
-                                  Remote
-                                </Badge>
-                              )}
-                              {job.is_verified && (
-                                <Badge variant="outline" className="text-blue-600 border-blue-600">
-                                  Verified
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                          {/* Job Info */}
-                          <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-600">
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-1" />
-                              {job.location}
-                            </div>
-                            <div className="flex items-center">
-                              <Briefcase className="w-4 h-4 mr-1" />
-                              {job.salary}
-                            </div>
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 mr-1" />
-                              {job.posted}
-                            </div>
-                          </div>
-
-                          {/* Skills */}
-                          {job.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              {job.skills.slice(0, 5).map((skill, index) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {skill}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Description Preview */}
-                          {job.description && job.description !== 'Failed to extract description' && (
-                            <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                              {job.description.substring(0, 150)}...
-                            </p>
-                          )}
-
-                          {/* Actions */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t">
-                            <div className="flex items-center space-x-3">
-                              {job.is_verified && (
-                                <div className="flex items-center text-sm text-green-600">
-                                  <Star className="w-4 h-4 mr-1 fill-green-600" />
-                                  Verified Company
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="flex gap-3">
-                              <Link to={`/jobs/${job.id}`}>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="hover:bg-[#E91E63] hover:text-white hover:border-[#E91E63]"
-                                >
-                                  View Details
-                                </Button>
-                              </Link>
-                              <Button
-                                size="sm"
-                                className="text-white"
-                                style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}
-                                onClick={() => window.open(`https://scraping-production-6a7a.up.railway.app/api/scrape?jobId=${job.id}`, '_blank')}
-                              >
-                                Apply Now
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
+      {/* Browse by Category */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Browse by Category</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {(categoriesWithCount.length > 0 ? categoriesWithCount : mockCategories).map((category) => {
+              const iconMap = {
+                'Laptop': Laptop,
+                'Megaphone': Megaphone,
+                'Palette': Palette,
+                'TrendingUp': TrendingUp,
+                'Users': Users,
+                'DollarSign': DollarSign,
+                'Headphones': Headphones,
+                'PenTool': PenTool
+              };
+              const IconComponent = iconMap[category.icon] || Briefcase;
+              
+              return (
+                <Link key={category.id} to={`/jobs?category=${encodeURIComponent(category.name)}`}>
+                  <Card className="hover:shadow-lg transition-all cursor-pointer hover:border-[#E91E63] border-2">
+                    <CardContent className="p-6 text-center">
+                      <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FFF1F3' }}>
+                        <IconComponent className="w-8 h-8" style={{ color: '#E91E63' }} />
                       </div>
+                      <h3 className="font-semibold text-gray-900 mb-2">{category.name}</h3>
+                      <p className="text-sm text-gray-600">{(category.dynamicCount || category.count)}+ jobs</p>
                     </CardContent>
                   </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Top Companies */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Top Companies Hiring</h2>
+            <Link to="/companies">
+              <Button variant="ghost" className="text-[#E91E63] hover:text-[#FF6F00]">
+                View All <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {topCompanies.map((company) => (
+              <Card key={company.id} className="hover:shadow-lg transition-all border-2 hover:border-[#E91E63]">
+                <CardContent className="p-6">
+                  <img 
+                    src={company.logo} 
+                    alt={company.name} 
+                    className="w-24 h-24 object-contain mx-auto mb-4 rounded-lg border bg-white"
+                    onError={(e) => {
+                      e.target.src = '/default-company.png';
+                    }}
+                  />
+                  <h3 className="font-bold text-lg text-center mb-2">{company.name}</h3>
+                  <div className="flex items-center justify-center mb-3">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
+                    <span className="font-medium">{company.rating}</span>
+                    <span className="text-gray-600 text-sm ml-1">({company.reviews} reviews)</span>
+                  </div>
+                  <p className="text-center text-sm text-gray-600 mb-4">{company.openPositions} Open Positions</p>
+                  <Link to={`/companies/${company.id}`}>
+                    <Button variant="outline" className="w-full hover:bg-[#E91E63] hover:text-white hover:border-[#E91E63]">
+                      View Jobs
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">How KaamJaipur Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {[
+              { step: '1', title: 'Create Profile', desc: 'Sign up free in 30 seconds' },
+              { step: '2', title: 'Search Jobs', desc: `Browse ${jobs.length}+ verified jobs` },
+              { step: '3', title: 'Apply Online', desc: 'One-click applications' },
+              { step: '4', title: 'Get Hired', desc: 'Track status' }
+            ].map((item, idx) => (
+              <div key={idx} className="text-center relative">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-2xl font-bold text-white" style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}>
+                  {item.step}
+                </div>
+                <h3 className="font-bold text-lg mb-2">{item.title}</h3>
+                <p className="text-gray-600">{item.desc}</p>
+                {idx < 3 && (
+                  <div className="hidden md:block absolute top-8 left-full w-full h-0.5 bg-gradient-to-r from-[#E91E63] to-[#FF6F00] opacity-30" style={{ width: 'calc(100% - 4rem)' }}></div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">Success Stories</h2>
+          <Card className="border-2 shadow-lg">
+            <CardContent className="p-8">
+              <div className="flex mb-6">
+                {[...Array(mockTestimonials[currentTestimonial].rating)].map((_, i) => (
+                  <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-            )}
-
-            {/* Pagination / Load More */}
-            {filteredJobs.length > jobsPerPage && currentPage < totalPages && (
-              <div className="mt-8 text-center">
-                <Button
-                  onClick={loadMoreJobs}
-                  disabled={loadingMore}
-                  variant="outline"
-                  className="w-full sm:w-auto px-8 hover:bg-[#E91E63] hover:text-white hover:border-[#E91E63]"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    `Load More (${Math.min(filteredJobs.length - indexOfLastJob, jobsPerPage)} more jobs)`
-                  )}
-                </Button>
-                
-                <div className="mt-2 text-sm text-gray-600">
-                  Page {currentPage} of {totalPages} • Showing {Math.min(indexOfLastJob, filteredJobs.length)} of {filteredJobs.length} jobs
+              <p className="text-lg text-gray-700 mb-6 italic">
+                "{mockTestimonials[currentTestimonial].text}"
+              </p>
+              <div className="flex items-center">
+                <img
+                  src={mockTestimonials[currentTestimonial].image}
+                  alt={mockTestimonials[currentTestimonial].name}
+                  className="w-12 h-12 rounded-full mr-4"
+                />
+                <div>
+                  <div className="font-bold">{mockTestimonials[currentTestimonial].name}</div>
+                  <div className="text-sm text-gray-600">{mockTestimonials[currentTestimonial].role}</div>
                 </div>
               </div>
-            )}
+            </CardContent>
+          </Card>
+          <div className="flex justify-center mt-6 space-x-2">
+            {mockTestimonials.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentTestimonial(idx)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  idx === currentTestimonial ? 'w-8 bg-[#E91E63]' : 'bg-gray-300'
+                }`}
+              />
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Quick Stats */}
-      <div className="bg-white border-t">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#E91E63]">{allJobs.length}</div>
-              <div className="text-sm text-gray-600">Total Jobs</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#E91E63]">
-                {allJobs.filter(job => job.is_remote).length}
-              </div>
-              <div className="text-sm text-gray-600">Remote Jobs</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#E91E63]">
-                {companies.length}
-              </div>
-              <div className="text-sm text-gray-600">Companies</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-[#E91E63]">
-                {categories.length}
-              </div>
-              <div className="text-sm text-gray-600">Categories</div>
-            </div>
-          </div>
+      {/* CTA Section */}
+      <section className="py-20" style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Find Your Dream Job?</h2>
+          <p className="text-lg mb-8 opacity-90">Join 50,000+ job seekers in Jaipur today</p>
+          <Button
+            size="lg"
+            className="bg-white hover:bg-gray-100 font-semibold"
+            style={{ color: '#E91E63' }}
+          >
+            Create Free Account <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+          <p className="mt-4 text-sm opacity-75">
+            Already have an account? <a href="#" className="underline font-medium">Login</a>
+          </p>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
 
-export default Jobs;
+export default Home;
