@@ -1,170 +1,163 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import SeoMeta from './SeoMeta';
 
 const JobDetailSeo = ({ job }) => {
-  // Helper function to convert experience to months
-  const getExperienceMonths = useCallback((exp) => {
-    if (exp === 'Fresher') return 0;
-    if (exp === '1-3 years') return 24;
-    if (exp === '3-5 years') return 48;
-    if (exp === '5+ years') return 60;
-    return 0;
-  }, []);
-
-  // Define helper functions with useCallback
-  const formatSalaryForTitle = useCallback(() => {
-    if (!job) return 'Competitive Salary';
-    if (job.salary_currency === 'INR') {
-      return 'Competitive Salary';
-    } else if (job.salary_currency) {
-      return `${job.salary_currency} Competitive`;
-    }
-    return 'Competitive Salary';
-  }, [job]);
-
-  const getJobLocation = useCallback(() => {
-    if (!job) return 'Jaipur';
-    if (job.location) {
-      const parts = job.location.split(',');
-      return parts[0] || 'Jaipur';
-    }
-    return 'Jaipur';
-  }, [job]);
-
-  const getExperienceText = useCallback(() => {
-    if (!job || !job.experience) return '';
-    return ` | ${job.experience} experience`;
-  }, [job]);
-
-  const getSkillsText = useCallback(() => {
-    if (!job || !job.skills || job.skills.length === 0) {
-      return 'various skills';
-    }
-    return job.skills.slice(0, 3).join(', ');
-  }, [job]);
-
-  // Memoized values
-  const location = useMemo(() => getJobLocation(), [getJobLocation]);
-  const formattedSalary = useMemo(() => formatSalaryForTitle(), [formatSalaryForTitle]);
-  const experienceText = useMemo(() => getExperienceText(), [getExperienceText]);
-  const skillsText = useMemo(() => getSkillsText(), [getSkillsText]);
-
-  // Generate SEO content
-  const title = useMemo(() => {
-    if (!job) return 'Job Details | KaamJaipur';
-    return `${job.job_title} at ${job.company_name} ${location} - ${formattedSalary}${experienceText} | KaamJaipur`;
-  }, [job, location, formattedSalary, experienceText]);
-
-  const description = useMemo(() => {
-    if (!job) return 'Find the best job opportunities in Jaipur on KaamJaipur.';
-    return `Apply for ${job.job_title} position at ${job.company_name} in ${location}. ${job.description ? job.description.substring(0, 150) : ''} Required skills: ${skillsText}. Apply now on KaamJaipur.`;
-  }, [job, location, skillsText]);
-
-  const keywords = useMemo(() => {
-    if (!job) return 'jobs jaipur, careers, employment opportunities';
-    return `${job.job_title.toLowerCase()} jobs jaipur, ${job.company_name.toLowerCase()} careers, ${job.category ? job.category.toLowerCase() : 'general'} jobs jaipur, ${location.toLowerCase()} jobs`;
-  }, [job, location]);
-
-  // Structured data
-  const structuredData = useMemo(() => {
+  const seoData = useMemo(() => {
     if (!job) {
       return {
-        "@context": "https://schema.org/",
-        "@type": "WebPage",
-        "name": "Job Details | KaamJaipur",
-        "description": "Find job opportunities in Jaipur"
+        title: 'Job Details - KaamJaipur | Latest Jobs in Jaipur',
+        description: 'View detailed job information on KaamJaipur. Find your perfect job opportunity in Jaipur with competitive salaries and benefits.',
+        keywords: 'job details, job description, apply jobs Jaipur, career opportunities',
+        structuredData: {
+          "@context": "https://schema.org/",
+          "@type": "WebPage",
+          "name": "Job Details | KaamJaipur",
+          "description": "Find job opportunities in Jaipur"
+        }
       };
     }
 
-    const jobPosting = {
+    // Helper functions
+    const getJobLocation = () => {
+      if (job.location) {
+        const parts = job.location.split(',');
+        return parts[0] || 'Jaipur';
+      }
+      return 'Jaipur';
+    };
+
+    const getExperienceText = () => {
+      if (job.experience) {
+        return `${job.experience} experience`;
+      }
+      return 'Entry level';
+    };
+
+    const getSkillsText = () => {
+      if (job.skills && job.skills.length > 0) {
+        return job.skills.slice(0, 5).join(', ');
+      }
+      return 'various skills';
+    };
+
+    const getSalaryText = () => {
+      if (job.salary_currency && job.salary_amount) {
+        if (job.salary_currency === 'INR') {
+          return `₹${job.salary_amount.toLocaleString()}`;
+        }
+        return `${job.salary_currency} ${job.salary_amount.toLocaleString()}`;
+      }
+      return 'competitive salary';
+    };
+
+    const location = getJobLocation();
+    const experienceText = getExperienceText();
+    const skillsText = getSkillsText();
+    const salaryText = getSalaryText();
+
+    // Create title (keep under 60 chars)
+    const title = `${job.job_title} in ${location} | ${job.company_name} Hiring`;
+    if (title.length > 60) {
+      title = `${job.job_title} Job in ${location} | KaamJaipur`;
+    }
+
+    // Create description (150-220 chars)
+    const description = `Apply for ${job.job_title} at ${job.company_name} in ${location}. ${experienceText}. Required skills: ${skillsText}. ${salaryText}. Apply now on KaamJaipur job portal.`;
+
+    // Keywords including job-specific terms
+    const keywords = [
+      `${job.job_title.toLowerCase()} jobs Jaipur`,
+      `${job.company_name.toLowerCase()} careers`,
+      `${location.toLowerCase()} jobs`,
+      `${job.category ? job.category.toLowerCase() + ' jobs' : 'general jobs'}`,
+      `${experienceText.toLowerCase()} jobs`,
+      'hire in Jaipur',
+      'career opportunities Rajasthan',
+      job.job_title.toLowerCase(),
+      job.company_name.toLowerCase(),
+      'KaamJaipur'
+    ].filter(Boolean).join(', ');
+
+    // Structured data for job posting
+    const structuredData = {
       "@context": "https://schema.org/",
       "@type": "JobPosting",
       "title": job.job_title,
-      "description": job.description || `${job.job_title} position at ${job.company_name} in ${location}`,
-      "datePosted": job.posted_date ? new Date(job.posted_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      "validThrough": job.posted_date ? new Date(new Date(job.posted_date).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      "description": job.description || description,
+      "datePosted": job.posted_date || new Date().toISOString(),
+      "validThrough": job.valid_through || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       "employmentType": job.type || "FULL_TIME",
       "hiringOrganization": {
         "@type": "Organization",
         "name": job.company_name,
-        "sameAs": job.url || `https://kaamjaipur.in/companies/${job.company_name.toLowerCase().replace(/\s+/g, '-')}`,
+        "sameAs": job.company_website || `https://kaamjaipur.in/companies/${job.company_id}`,
         "logo": job.company_logo || "https://kaamjaipur.in/logo.png"
       },
       "jobLocation": {
         "@type": "Place",
         "address": {
           "@type": "PostalAddress",
+          "streetAddress": job.address || "",
           "addressLocality": location,
           "addressRegion": "Rajasthan",
+          "postalCode": job.pincode || "302001",
           "addressCountry": "IN"
         }
       },
-      "applicantLocationRequirements": {
-        "@type": "Country",
-        "name": "IN"
-      },
-      "jobLocationType": job.is_remote ? "TELECOMMUTE" : "OnSite"
-    };
-
-    if (job.salary_currency && job.salary_amount) {
-      jobPosting.baseSalary = {
+      "baseSalary": {
         "@type": "MonetaryAmount",
-        "currency": job.salary_currency,
+        "currency": job.salary_currency || "INR",
         "value": {
           "@type": "QuantitativeValue",
-          "value": job.salary_amount,
-          "unitText": "YEAR"
+          "value": job.salary_amount || "",
+          "unitText": "MONTH"
         }
-      };
-    }
-
-    if (job.experience) {
-      jobPosting.experienceRequirements = {
+      },
+      "experienceRequirements": {
         "@type": "OccupationalExperienceRequirements",
-        "monthsOfExperience": getExperienceMonths(job.experience)
-      };
-    }
+        "monthsOfExperience": job.experience_months || 0
+      },
+      "educationRequirements": job.education || "Any Graduate",
+      "skills": skillsText,
+      "responsibilities": job.responsibilities || "",
+      "qualifications": job.qualifications || "",
+      "incentiveCompensation": job.incentives || "",
+      "jobBenefits": job.benefits || ""
+    };
 
-    return jobPosting;
-  }, [job, location, getExperienceMonths]);
-
-  // Early return at the end, after all hooks
-  if (!job) {
-    return (
-      <SeoMeta
-        title="Job Details | KaamJaipur"
-        description="Find the best job opportunities in Jaipur on KaamJaipur."
-        keywords="jobs jaipur, careers, employment opportunities"
-        ogTitle="Job Details | KaamJaipur"
-        ogDescription="Find the best job opportunities in Jaipur on KaamJaipur."
-        ogImage="https://kaamjaipur.in/og-image.jpg"
-        ogUrl="https://kaamjaipur.in/jobs"
-        ogType="website"
-        twitterTitle="Job Details | KaamJaipur"
-        twitterDescription="Find the best job opportunities in Jaipur on KaamJaipur."
-        twitterImage="https://kaamjaipur.in/twitter-card.jpg"
-        canonicalUrl="https://kaamjaipur.in/jobs"
-        structuredData={structuredData}
-      />
-    );
-  }
+    return {
+      title,
+      description,
+      keywords,
+      structuredData,
+      ogImage: job.company_logo || 'https://kaamjaipur.in/og-image.jpg',
+      ogUrl: `https://kaamjaipur.in/jobs/${job.job_id}`,
+      canonicalUrl: `https://kaamjaipur.in/jobs/${job.job_id}`,
+      ogType: 'article'
+    };
+  }, [job]);
 
   return (
-    <SeoMeta
-      title={title}
-      description={description}
-      keywords={keywords}
-      ogTitle={title}
-      ogDescription={description}
-      ogImage={job.company_logo || 'https://kaamjaipur.in/og-image.jpg'}
-      ogUrl={`https://kaamjaipur.in/jobs/${job.job_id}`}
-      ogType="article"
-      twitterTitle={title}
-      twitterDescription={description}
-      twitterImage={job.company_logo || 'https://kaamjaipur.in/twitter-card.jpg'}
-      canonicalUrl={`https://kaamjaipur.in/jobs/${job.job_id}`}
-      structuredData={structuredData}
-    />
+    <>
+      <SeoMeta
+        title={seoData.title}
+        description={seoData.description}
+        keywords={seoData.keywords}
+        ogTitle={seoData.title}
+        ogDescription={seoData.description}
+        ogImage={seoData.ogImage}
+        ogUrl={seoData.ogUrl}
+        ogType={seoData.ogType}
+        twitterTitle={seoData.title}
+        twitterDescription={seoData.description}
+        twitterImage={seoData.ogImage}
+        canonicalUrl={seoData.canonicalUrl}
+        structuredData={seoData.structuredData}
+      />
+      
+      {/* Hidden H1 for SEO */}
+      <h1 className="sr-only">{seoData.title.replace('|', '-')}</h1>
+    </>
   );
 };
 
