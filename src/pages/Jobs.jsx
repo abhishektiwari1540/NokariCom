@@ -11,6 +11,7 @@ import { Slider } from '../components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Skeleton } from '../components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
+import JobsSeo from '../components/SEO/JobsSeo';
 
 const Jobs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -31,7 +32,12 @@ const Jobs = () => {
   const [companies, setCompanies] = useState([]);
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
-
+ const seoProps = useMemo(() => ({
+    jobCount: allJobs.length,
+    searchQuery: searchQuery || '',
+    jobType: jobType || '',
+    companyCount: companies.length
+  }), [allJobs.length, searchQuery, jobType, companies.length]);
   // Initial data fetch
   useEffect(() => {
     const fetchJobs = async () => {
@@ -298,6 +304,8 @@ const Jobs = () => {
   // Loading skeleton
   if (loading && allJobs.length === 0) {
     return (
+      <>
+      <JobsSeo {...seoProps} />
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -351,6 +359,7 @@ const Jobs = () => {
           </div>
         </div>
       </div>
+    </>
     );
   }
 
@@ -544,6 +553,8 @@ const Jobs = () => {
   );
 
   return (
+    <>
+      <JobsSeo {...seoProps} />
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
@@ -939,6 +950,7 @@ const Jobs = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Skeleton } from '../components/ui/skeleton';
 import { Separator } from '../components/ui/separator';
+import JobDetailSeo from '../components/SEO/JobDetailSeo';
 
 const JobDetail = () => {
   const { id } = useParams(); // This will be the job_id from URL
@@ -151,6 +152,8 @@ const JobDetail = () => {
   // Loading skeleton
   if (loading) {
     return (
+      <>
+      {job && <JobDetailSeo job={job} />}
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -200,6 +203,7 @@ const JobDetail = () => {
           </div>
         </div>
       </div>
+      </>
     );
   }
 

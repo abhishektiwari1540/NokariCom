@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { mockCategories, mockTestimonials, mockStats } from '../mock';
+import HomeSeo from '../components/SEO/HomeSeo';
 
 const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,6 +17,10 @@ const Home = () => {
   const [featuredJobs, setFeaturedJobs] = useState([]);
   const [topCompanies, setTopCompanies] = useState([]);
   const [categoriesWithCount, setCategoriesWithCount] = useState([]);
+
+   const seoProps = useMemo(() => ({
+    jobCount: jobs.length
+  }), [jobs.length]);
 
   // Format date to relative time
   const formatDate = useCallback((dateString) => {
@@ -209,6 +214,8 @@ const Home = () => {
   // Loading skeleton
   if (loading) {
     return (
+      <>
+            <HomeSeo {...seoProps} />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <section className="relative overflow-hidden">
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
@@ -235,10 +242,13 @@ const Home = () => {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+                <HomeSeo {...seoProps} />
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -580,6 +590,7 @@ const Home = () => {
         </div>
       </section>
     </div>
+    </>
   );
 };
 
