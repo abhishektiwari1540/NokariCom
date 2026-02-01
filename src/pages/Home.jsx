@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Briefcase, Building2, CheckCircle, Users, ArrowRight, Star, Laptop, Megaphone, Palette, TrendingUp, DollarSign, Headphones, PenTool, Loader2 } from 'lucide-react';
+import { Search, MapPin, Briefcase, Building2, CheckCircle, Users, ArrowRight, Star, Laptop, Megaphone, Palette, TrendingUp, DollarSign, Headphones, PenTool } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
@@ -16,6 +16,25 @@ const Home = () => {
   const [featuredJobs, setFeaturedJobs] = useState([]);
   const [topCompanies, setTopCompanies] = useState([]);
   const [categoriesWithCount, setCategoriesWithCount] = useState([]);
+
+  // Format date to relative time - MUST be defined BEFORE useEffect that uses it
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return 'Recently';
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+      
+      if (diffInDays === 0) return 'Today';
+      if (diffInDays === 1) return 'Yesterday';
+      if (diffInDays < 7) return `${diffInDays} days ago`;
+      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+      return `${Math.floor(diffInDays / 30)} months ago`;
+    } catch {
+      return 'Recently';
+    }
+  }, []);
 
   // Fetch data from API with caching
   useEffect(() => {
@@ -151,26 +170,7 @@ const Home = () => {
     };
 
     fetchData();
-  }, []);
-
-  // Format date to relative time
-  const formatDate = useCallback((dateString) => {
-    if (!dateString) return 'Recently';
-    
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-      
-      if (diffInDays === 0) return 'Today';
-      if (diffInDays === 1) return 'Yesterday';
-      if (diffInDays < 7) return `${diffInDays} days ago`;
-      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-      return `${Math.floor(diffInDays / 30)} months ago`;
-    } catch {
-      return 'Recently';
-    }
-  }, []);
+  }, [formatDate]); // ✅ Added formatDate to dependencies
 
   // Auto-rotate testimonials
   useEffect(() => {
