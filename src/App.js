@@ -17,7 +17,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/jobs" element={<Jobs />} />
-          <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/jobs/:id" element={<JobDetail />} /> {/* This will receive job_id */}
           <Route path="/companies" element={<Companies />} />
           <Route path="/companies/:id" element={<CompanyProfile />} />
         </Routes>

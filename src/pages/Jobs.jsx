@@ -47,7 +47,8 @@ const Jobs = () => {
         
         if (data.success && data.data) {
           const transformedJobs = data.data.map(job => ({
-            id: job._id || job.job_id,
+            id: job.job_id || job._id, // ✅ Use job_id first
+            job_id: job.job_id, // ✅ Store job_id separately
             title: job.job_title,
             company: job.company_name,
             location: job.location,
@@ -771,7 +772,7 @@ const Jobs = () => {
                           <div className="flex-1">
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 mb-3">
                               <div>
-                                <Link to={`/jobs/${job.id}`}>
+                                <Link to={`/jobs/${job.job_id}`}> {/* ✅ Use job.job_id */}
                                   <h3 className="font-bold text-xl text-gray-900 hover:text-[#E91E63] transition-colors mb-1">
                                     {job.title}
                                   </h3>
@@ -857,7 +858,7 @@ const Jobs = () => {
                               </div>
                               
                               <div className="flex gap-3">
-                                <Link to={`/jobs/${job.id}`}>
+                                <Link to={`/jobs/${job.job_id}`}> {/* ✅ Use job.job_id */}
                                   <Button
                                     variant="outline"
                                     className="hover:bg-[#E91E63] hover:text-white hover:border-[#E91E63]"
@@ -868,7 +869,7 @@ const Jobs = () => {
                                 <Button
                                   className="text-white"
                                   style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}
-                                  onClick={() => window.open(`https://scraping-production-6a7a.up.railway.app/api/scrape?jobId=${job.id}`, '_blank')}
+                                  onClick={() => window.open(`https://scraping-production-6a7a.up.railway.app/api/scrape?jobId=${job.job_id}`, '_blank')} 
                                 >
                                   Apply Now
                                   <ExternalLink className="w-4 h-4 ml-2" />

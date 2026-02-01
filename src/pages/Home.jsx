@@ -17,7 +17,7 @@ const Home = () => {
   const [topCompanies, setTopCompanies] = useState([]);
   const [categoriesWithCount, setCategoriesWithCount] = useState([]);
 
-  // Format date to relative time - MUST be defined BEFORE useEffect that uses it
+  // Format date to relative time
   const formatDate = useCallback((dateString) => {
     if (!dateString) return 'Recently';
     
@@ -86,7 +86,8 @@ const Home = () => {
       if (data.success && data.data) {
         // Transform API data - process only first 50 for speed
         const transformedJobs = data.data.slice(0, 50).map(job => ({
-          id: job._id || job.job_id,
+          id: job.job_id || job._id, // ✅ Use job_id first, fallback to _id
+          job_id: job.job_id, // ✅ Keep job_id for reference
           title: job.job_title,
           company: job.company_name,
           location: job.location,
@@ -170,7 +171,7 @@ const Home = () => {
     };
 
     fetchData();
-  }, [formatDate]); // ✅ Added formatDate to dependencies
+  }, [formatDate]);
 
   // Auto-rotate testimonials
   useEffect(() => {
@@ -398,7 +399,7 @@ const Home = () => {
 
                   <div className="flex justify-between items-center pt-4 border-t">
                     <span className="text-sm text-gray-500">Posted {job.posted}</span>
-                    <Link to={`/jobs/${job.id}`}>
+                    <Link to={`/jobs/${job.job_id}`}> {/* ✅ Use job.job_id */}
                       <Button
                         size="sm"
                         className="text-white"

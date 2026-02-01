@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Briefcase, GraduationCap, Clock, Share2, Heart, ArrowLeft, Building2, ExternalLink, Mail, Phone, Globe, Users, Calendar, CheckCircle, AlertCircle, Star, Loader2, DollarSign, Award, Shield } from 'lucide-react';
+import { MapPin, Briefcase, GraduationCap, Clock, Share2, Heart, ArrowLeft, Building2, ExternalLink, Users, Calendar, CheckCircle, AlertCircle, Star, Loader2, DollarSign, Award } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -9,7 +9,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { Separator } from '../components/ui/separator';
 
 const JobDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // This will be the job_id from URL
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ const JobDetail = () => {
   const [similarJobs, setSimilarJobs] = useState([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
 
-  // Fetch job details
+  // Fetch job details using job_id
   const fetchJobDetails = useCallback(async () => {
     if (!id) {
       setError('No job ID provided');
@@ -29,6 +29,7 @@ const JobDetail = () => {
       setLoading(true);
       setError(null);
       
+      // Use the job_id parameter directly
       const response = await fetch(`https://scraping-production-6a7a.up.railway.app/api/scrape?jobId=${id}`);
       
       if (!response.ok) {
@@ -63,7 +64,7 @@ const JobDetail = () => {
         // Filter similar jobs based on company, location, or category
         const similar = data.data
           .filter(j => 
-            j._id !== currentJob._id && // Not the same job
+            j.job_id !== currentJob.job_id && // Not the same job (compare by job_id)
             (
               j.company_name === currentJob.company_name ||
               j.location?.includes('Jaipur') ||
@@ -72,7 +73,8 @@ const JobDetail = () => {
           )
           .slice(0, 3)
           .map(job => ({
-            id: job._id,
+            id: job.job_id, // ✅ Use job_id for link
+            job_id: job.job_id,
             title: job.job_title,
             company: job.company_name,
             location: job.location,
@@ -85,7 +87,6 @@ const JobDetail = () => {
       }
     } catch (error) {
       console.error('Error fetching similar jobs:', error);
-      // Don't set error here - similar jobs are not critical
     } finally {
       setLoadingSimilar(false);
     }
@@ -335,8 +336,8 @@ const JobDetail = () => {
                   <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                     <Award className="w-5 h-5 mr-3 text-[#E91E63]" />
                     <div>
-                      <div className="text-sm text-gray-500">Experience</div>
-                      <div className="font-medium">{job.experience || 'Not specified'}</div>
+                      <div className="text-sm text-gray-500">Category</div>
+                      <div className="font-medium">{job.category || 'General'}</div>
                     </div>
                   </div>
                 </div>
@@ -532,7 +533,7 @@ const JobDetail = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Job ID:</span>
-                        <span className="font-medium">{job.job_id || job._id}</span>
+                        <span className="font-medium">{job.job_id}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Posted Date:</span>
@@ -704,7 +705,7 @@ const JobDetail = () => {
                         }}
                       />
                       <div className="flex-1 min-w-0">
-                        <Link to={`/jobs/${simJob.id}`}>
+                        <Link to={`/jobs/${simJob.job_id}`}> {/* ✅ Use simJob.job_id */}
                           <h3 className="font-bold text-gray-900 hover:text-[#E91E63] truncate">
                             {simJob.title}
                           </h3>
@@ -723,7 +724,7 @@ const JobDetail = () => {
                     
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-500">{simJob.posted}</span>
-                      <Link to={`/jobs/${simJob.id}`}>
+                      <Link to={`/jobs/${simJob.job_id}`}> {/* ✅ Use simJob.job_id */}
                         <Button size="sm" variant="ghost" className="text-[#E91E63]">
                           View
                         </Button>
