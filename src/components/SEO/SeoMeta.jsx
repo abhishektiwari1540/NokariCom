@@ -30,8 +30,6 @@ const SeoMeta = ({
     ? description + ' Find latest job opportunities in Jaipur with competitive salaries.'
     : description;
 
-  const pageUrl = typeof window !== 'undefined' ? window.location.href : ogUrl;
-
   return (
     <>
       <Helmet>
@@ -51,7 +49,7 @@ const SeoMeta = ({
         <meta property="og:title" content={ogTitle || seoTitle} />
         <meta property="og:description" content={ogDescription || seoDescription} />
         <meta property="og:image" content={ogImage} />
-        <meta property="og:url" content={ogUrl || pageUrl} />
+        <meta property="og:url" content={ogUrl} />
         <meta property="og:type" content={ogType} />
         <meta property="og:site_name" content="KaamJaipur" />
         <meta property="og:locale" content="en_IN" />

@@ -8,7 +8,6 @@ import Jobs from './pages/Jobs';
 import JobDetail from './pages/JobDetail';
 import Companies from './pages/Companies';
 import CompanyProfile from './pages/CompanyProfile';
-import GoogleAnalytics from './components/SEO/GoogleAnalytics';
 
 function App() {
   return (
