@@ -61,4 +61,4 @@ const HomeSeo = ({ totalJobs = 0 }) => {
   );
 };
 
-export default HomePageSeo;
+export default HomeSeo;
