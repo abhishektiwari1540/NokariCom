@@ -10,7 +10,6 @@ const Header = () => {
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/jobs', label: 'Jobs' },
-    { path: '/companies', label: 'Companies' },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -46,17 +45,7 @@ const Header = () => {
           </nav>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" className="text-gray-700 hover:text-[#E91E63]">
-              Login
-            </Button>
-            <Button
-              className="text-white"
-              style={{ background: 'linear-gradient(135deg, #E91E63 0%, #FF6F00 100%)' }}
-            >
-              Sign Up
-            </Button>
-          </div>
+          
 
           {/* Mobile menu button */}
           <button
