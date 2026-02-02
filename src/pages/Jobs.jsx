@@ -45,7 +45,6 @@ const Jobs = () => {
   const [companies, setCompanies] = useState([]);
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
-  // REMOVED: const [filteredJobs, setFilteredJobs] = useState([]);
   
   // Refs for animations
   const headerRef = useRef(null);
@@ -60,6 +59,126 @@ const Jobs = () => {
     jobType: jobType || '',
     companyCount: companies.length
   }), [allJobs.length, searchQuery, jobType, companies.length]);
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Recently';
+    
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+      
+      if (diffInDays === 0) return 'Today';
+      if (diffInDays === 1) return 'Yesterday';
+      if (diffInDays < 7) return `${diffInDays} days ago`;
+      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+      return `${Math.floor(diffInDays / 30)} months ago`;
+    } catch {
+      return 'Recently';
+    }
+  };
+
+  // Filter and sort jobs with useMemo for performance
+  const filteredJobs = useMemo(() => {
+    let filtered = [...allJobs];
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(job =>
+        job.title.toLowerCase().includes(query) ||
+        job.company.toLowerCase().includes(query) ||
+        (job.skills && job.skills.some(skill => skill.toLowerCase().includes(query))) ||
+        (job.description && job.description.toLowerCase().includes(query))
+      );
+    }
+
+    if (selectedCompanies.length > 0) {
+      filtered = filtered.filter(job =>
+        selectedCompanies.includes(job.company)
+      );
+    }
+
+    if (jobType) {
+      if (jobType === 'government-jobs') {
+        filtered = filtered.filter(job => 
+          job.company.toLowerCase().includes('government') ||
+          job.title.toLowerCase().includes('government') ||
+          job.company.toLowerCase().includes('ministry') ||
+          job.company.toLowerCase().includes('department')
+        );
+      } else if (jobType === 'private-jobs') {
+        filtered = filtered.filter(job => 
+          !job.company.toLowerCase().includes('government') &&
+          !job.title.toLowerCase().includes('government')
+        );
+      } else if (jobType === 'internships') {
+        filtered = filtered.filter(job => 
+          job.title.toLowerCase().includes('intern') ||
+          job.type.toLowerCase().includes('internship')
+        );
+      } else if (jobType === 'remote') {
+        filtered = filtered.filter(job => job.is_remote);
+      }
+    }
+
+    if (showRemoteOnly) {
+      filtered = filtered.filter(job => job.is_remote);
+    }
+
+    if (showVerifiedOnly) {
+      filtered = filtered.filter(job => job.is_verified);
+    }
+
+    if (experienceLevel) {
+      filtered = filtered.filter(job => job.experience === experienceLevel);
+    }
+
+    if (salaryRange[1] < 100) {
+      filtered = filtered.filter(job => {
+        const salaryValue = job.salaryAmount || 0;
+        return salaryValue >= salaryRange[0] && salaryValue <= salaryRange[1];
+      });
+    }
+
+    switch (sortBy) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.posted_date || 0) - new Date(a.posted_date || 0));
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.posted_date || 0) - new Date(b.posted_date || 0));
+        break;
+      case 'salary_high':
+        filtered.sort((a, b) => (b.salaryAmount || 0) - (a.salaryAmount || 0));
+        break;
+      case 'salary_low':
+        filtered.sort((a, b) => (a.salaryAmount || 0) - (b.salaryAmount || 0));
+        break;
+      case 'company':
+        filtered.sort((a, b) => a.company.localeCompare(b.company));
+        break;
+      case 'applicants':
+        filtered.sort((a, b) => b.applicants - a.applicants);
+        break;
+    }
+
+    return filtered;
+  }, [allJobs, searchQuery, selectedCompanies, jobType, showRemoteOnly, showVerifiedOnly, experienceLevel, salaryRange, sortBy]);
+
+  // Pagination - use useMemo to prevent re-calculations
+  const { currentJobs, totalPages, indexOfFirstJob, indexOfLastJob } = useMemo(() => {
+    const indexOfLastJob = currentPage * jobsPerPage;
+    const indexOfFirstJob = indexOfLastJob - jobsPerPage;
+    const currentJobs = filteredJobs.slice(indexOfFirstJob, indexOfLastJob);
+    const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
+    
+    return {
+      currentJobs,
+      totalPages,
+      indexOfFirstJob,
+      indexOfLastJob
+    };
+  }, [filteredJobs, currentPage, jobsPerPage]);
 
   // Initialize GSAP smooth scroll
   useEffect(() => {
@@ -234,117 +353,6 @@ const Jobs = () => {
 
     fetchJobs();
   }, []);
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Recently';
-    
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-      
-      if (diffInDays === 0) return 'Today';
-      if (diffInDays === 1) return 'Yesterday';
-      if (diffInDays < 7) return `${diffInDays} days ago`;
-      if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-      return `${Math.floor(diffInDays / 30)} months ago`;
-    } catch {
-      return 'Recently';
-    }
-  };
-
-  // Filter and sort jobs with useMemo for performance
-  const filteredJobs = useMemo(() => {
-    let filtered = [...allJobs];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(job =>
-        job.title.toLowerCase().includes(query) ||
-        job.company.toLowerCase().includes(query) ||
-        (job.skills && job.skills.some(skill => skill.toLowerCase().includes(query))) ||
-        (job.description && job.description.toLowerCase().includes(query))
-      );
-    }
-
-    if (selectedCompanies.length > 0) {
-      filtered = filtered.filter(job =>
-        selectedCompanies.includes(job.company)
-      );
-    }
-
-    if (jobType) {
-      if (jobType === 'government-jobs') {
-        filtered = filtered.filter(job => 
-          job.company.toLowerCase().includes('government') ||
-          job.title.toLowerCase().includes('government') ||
-          job.company.toLowerCase().includes('ministry') ||
-          job.company.toLowerCase().includes('department')
-        );
-      } else if (jobType === 'private-jobs') {
-        filtered = filtered.filter(job => 
-          !job.company.toLowerCase().includes('government') &&
-          !job.title.toLowerCase().includes('government')
-        );
-      } else if (jobType === 'internships') {
-        filtered = filtered.filter(job => 
-          job.title.toLowerCase().includes('intern') ||
-          job.type.toLowerCase().includes('internship')
-        );
-      } else if (jobType === 'remote') {
-        filtered = filtered.filter(job => job.is_remote);
-      }
-    }
-
-    if (showRemoteOnly) {
-      filtered = filtered.filter(job => job.is_remote);
-    }
-
-    if (showVerifiedOnly) {
-      filtered = filtered.filter(job => job.is_verified);
-    }
-
-    if (experienceLevel) {
-      filtered = filtered.filter(job => job.experience === experienceLevel);
-    }
-
-    if (salaryRange[1] < 100) {
-      filtered = filtered.filter(job => {
-        const salaryValue = job.salaryAmount || 0;
-        return salaryValue >= salaryRange[0] && salaryValue <= salaryRange[1];
-      });
-    }
-
-    switch (sortBy) {
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.posted_date || 0) - new Date(a.posted_date || 0));
-        break;
-      case 'oldest':
-        filtered.sort((a, b) => new Date(a.posted_date || 0) - new Date(b.posted_date || 0));
-        break;
-      case 'salary_high':
-        filtered.sort((a, b) => (b.salaryAmount || 0) - (a.salaryAmount || 0));
-        break;
-      case 'salary_low':
-        filtered.sort((a, b) => (a.salaryAmount || 0) - (b.salaryAmount || 0));
-        break;
-      case 'company':
-        filtered.sort((a, b) => a.company.localeCompare(b.company));
-        break;
-      case 'applicants':
-        filtered.sort((a, b) => b.applicants - a.applicants);
-        break;
-    }
-
-    return filtered;
-  }, [allJobs, searchQuery, selectedCompanies, jobType, showRemoteOnly, showVerifiedOnly, experienceLevel, salaryRange, sortBy]);
-
-  // Pagination
-  const indexOfLastJob = currentPage * jobsPerPage;
-  const indexOfFirstJob = indexOfLastJob - jobsPerPage;
-  const currentJobs = filteredJobs.slice(indexOfFirstJob, indexOfLastJob);
-  const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
 
   // Handle company selection
   const handleCompanyToggle = useCallback((companyName) => {
