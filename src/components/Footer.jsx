@@ -10,20 +10,10 @@ const Footer = () => {
       title: 'For Job Seekers',
       links: [
         { label: 'Browse Jobs', path: '/jobs' },
-        { label: 'Create Profile', path: '#' },
-        { label: 'Saved Jobs', path: '#' },
-        { label: 'Job Alerts', path: '#' },
+
       ],
     },
-    {
-      title: 'For Employers',
-      links: [
-        { label: 'Post a Job', path: '#' },
-        { label: 'Pricing', path: '#' },
-        { label: 'Solutions', path: '#' },
-        { label: 'Hire Now', path: '#' },
-      ],
-    },
+   
     {
       title: 'Company',
       links: [
